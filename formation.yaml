@@ -15,6 +15,17 @@ Resources:
           ProvisionedThroughput:
             ReadCapacityUnits: 1
             WriteCapacityUnits: 1
+        - IndexName: cap_idx
+          KeySchema:
+            - AttributeName: pool
+              KeyType: HASH
+            - AttributeName: cap
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
@@ -23,6 +34,10 @@ Resources:
           AttributeType: S
         - AttributeName: ttl
           AttributeType: N
+        - AttributeName: cap
+          AttributeType: N
+        - AttributeName: pool
+          AttributeType: S
       KeySchema:
         - AttributeName: id
           KeyType: HASH

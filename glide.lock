@@ -1,6 +1,8 @@
-hash: cd582cb1c22e7807a493940dc8e71c9df8c27b4e8402c31b58ae9dbf798b23bf
-updated: 2017-07-22T18:27:34.623930855+02:00
+hash: c2af9c5c9476d5b1fe0187eff650f23d62fd69b91c00c0bab990cb2f8b1e6f01
+updated: 2017-07-22T22:16:44.941539515+02:00
 imports:
+- name: github.com/advanderveer/go-dynamo
+  version: 2877ce2a331c2fca17eaa07bd159353c8ded84b1
 - name: github.com/armon/go-radix
   version: 4239b77079c7b5d1243b7b4736304ce8ddb6f0f2
 - name: github.com/aws/aws-sdk-go
@@ -24,10 +26,15 @@ imports:
   - aws/signer/v4
   - internal/shareddefaults
   - private/protocol
+  - private/protocol/json/jsonutil
+  - private/protocol/jsonrpc
   - private/protocol/query
   - private/protocol/query/queryutil
   - private/protocol/rest
   - private/protocol/xml/xmlutil
+  - service/dynamodb
+  - service/dynamodb/dynamodbattribute
+  - service/dynamodb/dynamodbiface
   - service/sts
 - name: github.com/bgentry/speakeasy
   version: 4aabc24848ce5fd31929f7d1e4ea74d3709c14cd
@@ -37,6 +44,10 @@ imports:
   version: 7554cd9344cec97297fa6649b055a8c98c2a1e55
 - name: github.com/hashicorp/go-multierror
   version: 83588e72410abfbe4df460eeb6f30841ae47d4c4
+- name: github.com/hashicorp/go-uuid
+  version: 64130c7a86d732268a38cb04cfbaf0cc987fda98
+- name: github.com/hashicorp/logutils
+  version: 0dc08b1671f34c4250ce212759ebd880f743d883
 - name: github.com/jessevdk/go-flags
   version: 96dc06278ce32a0e9d957d590bb987c81ee66407
 - name: github.com/jmespath/go-jmespath

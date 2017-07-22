@@ -6,3 +6,9 @@ import:
     version: d10eaaaf78c45b8e959311791db9fae4530a61bf
   - package: github.com/jessevdk/go-flags
     version: ^1.3.0
+  - package: github.com/advanderveer/go-dynamo
+    version: 2877ce2a331c2fca17eaa07bd159353c8ded84b1
+  - package: github.com/hashicorp/logutils
+    version: 0dc08b1671f34c4250ce212759ebd880f743d883
+  - package: github.com/hashicorp/go-uuid
+    version: 64130c7a86d732268a38cb04cfbaf0cc987fda98
