@@ -76,6 +76,11 @@ func (cmd *command) Run(args []string) int {
 	return 0
 }
 
+// AutocompleteArgs returns the argument predictor for this command.
+func (cmd *command) AutocompleteArgs() complete.Predictor {
+	return complete.PredictNothing
+}
+
 func fail(err error, message string) int {
 	fmt.Fprintf(os.Stderr, "error: %v\n", errors.Wrap(err, message))
 	return 255

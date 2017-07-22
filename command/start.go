@@ -6,7 +6,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/mitchellh/cli"
 	"github.com/pkg/errors"
-	"github.com/posener/complete"
 )
 
 //Start command
@@ -53,8 +52,3 @@ func (cmd *Start) Synopsis() string { return "<synopsis>" }
 
 // Usage shows usage
 func (cmd *Start) Usage() string { return "<usage>" }
-
-// AutocompleteArgs returns the argument predictor for this command.
-func (cmd *Start) AutocompleteArgs() complete.Predictor {
-	return complete.PredictNothing
-}
