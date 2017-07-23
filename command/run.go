@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/advanderveer/factory/engine"
 	"github.com/aws/aws-sdk-go/aws"
@@ -14,17 +15,17 @@ import (
 	"github.com/pkg/errors"
 )
 
-//Agent command
-type Agent struct {
+//Run command
+type Run struct {
 	*command
 
 	awsFlags   AWSFlags
 	debugFlags DebugFlags
 }
 
-//AgentFactory creates the command
-func AgentFactory() cli.CommandFactory {
-	cmd := &Agent{}
+//RunFactory creates the command
+func RunFactory() cli.CommandFactory {
+	cmd := &Run{}
 	cmd.command = createCommand(cmd.Execute, cmd.Description, cmd.Usage)
 	cmd.command.flagParser.AddGroup("AWS Flags", "AWS Flags", &cmd.awsFlags)
 	cmd.command.flagParser.AddGroup("Debug Flags", "Debug Flags", &cmd.debugFlags)
@@ -35,7 +36,7 @@ func AgentFactory() cli.CommandFactory {
 }
 
 //Execute runs the command
-func (cmd *Agent) Execute(args []string) (err error) {
+func (cmd *Run) Execute(args []string) (err error) {
 	if len(args) < 1 {
 		return errors.New("not enough arguments, see --help")
 	}
@@ -58,7 +59,7 @@ func (cmd *Agent) Execute(args []string) (err error) {
 	sigCh := make(chan os.Signal)
 	signal.Notify(sigCh, os.Interrupt)
 	ctx := context.Background()
-	ctx, stop := context.WithCancel(ctx)
+	ctx, stop := context.WithTimeout(ctx, time.Second*30)
 	defer stop()
 	go func() {
 		for s := range sigCh {
@@ -70,18 +71,19 @@ func (cmd *Agent) Execute(args []string) (err error) {
 	db := dynamodb.New(awss)
 	q := sqs.New(awss)
 	engine := engine.New(logs, db, q)
-	if err = engine.Agent(ctx, args[0]); err != nil {
-		return errors.Wrap(err, "failed to run agent")
+	err = engine.Run(ctx, args[0], 1)
+	if err != nil {
+		return errors.Wrap(err, "failed to run process")
 	}
 
 	return nil
 }
 
 // Description returns long-form help text
-func (cmd *Agent) Description() string { return "<help>" }
+func (cmd *Run) Description() string { return "<help>" }
 
 // Synopsis returns a one-line
-func (cmd *Agent) Synopsis() string { return "<synopsis>" }
+func (cmd *Run) Synopsis() string { return "<synopsis>" }
 
 // Usage shows usage
-func (cmd *Agent) Usage() string { return "factory agent <pool_id>" }
+func (cmd *Run) Usage() string { return "factory run <pool_id>" }

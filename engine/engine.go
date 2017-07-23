@@ -5,21 +5,22 @@ import (
 
 	"github.com/advanderveer/factory/model"
 	dynamo "github.com/advanderveer/go-dynamo"
-	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/pkg/errors"
 )
 
 //Engine controls the factory
 type Engine struct {
 	logs *log.Logger
-	db   dynamodbiface.DynamoDBAPI
+	db   model.DB
+	q    Q
 }
 
 //New creates a new Engine
-func New(logs *log.Logger, db dynamodbiface.DynamoDBAPI) *Engine {
+func New(logs *log.Logger, db model.DB, q Q) *Engine {
 	return &Engine{
 		logs: logs,
 		db:   db,
+		q:    q,
 	}
 }
 

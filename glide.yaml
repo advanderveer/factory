@@ -12,3 +12,5 @@ import:
     version: 0dc08b1671f34c4250ce212759ebd880f743d883
   - package: github.com/hashicorp/go-uuid
     version: 64130c7a86d732268a38cb04cfbaf0cc987fda98
+  - package: github.com/cenkalti/backoff
+    version: 61153c768f31ee5f130071d08fc82b85208528de

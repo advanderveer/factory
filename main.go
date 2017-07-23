@@ -24,6 +24,7 @@ func main() {
 		Autocomplete: true,
 		Commands: map[string]cli.CommandFactory{
 			"agent": command.AgentFactory(),
+			"run":   command.RunFactory(),
 		},
 	}
 

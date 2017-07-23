@@ -1,5 +1,5 @@
-hash: c2af9c5c9476d5b1fe0187eff650f23d62fd69b91c00c0bab990cb2f8b1e6f01
-updated: 2017-07-22T22:16:44.941539515+02:00
+hash: 545b3098b6a49dc141b64081e0a66d3147addb11d9e34421a8fa77dcefb1f01e
+updated: 2017-07-23T10:02:42.245259175+02:00
 imports:
 - name: github.com/advanderveer/go-dynamo
   version: 2877ce2a331c2fca17eaa07bd159353c8ded84b1
@@ -38,6 +38,8 @@ imports:
   - service/sts
 - name: github.com/bgentry/speakeasy
   version: 4aabc24848ce5fd31929f7d1e4ea74d3709c14cd
+- name: github.com/cenkalti/backoff
+  version: 61153c768f31ee5f130071d08fc82b85208528de
 - name: github.com/go-ini/ini
   version: afbc45e87f3ba324c532d12c71918ef52e0fb194
 - name: github.com/hashicorp/errwrap
