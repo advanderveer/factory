@@ -65,11 +65,22 @@ Resources:
           ProvisionedThroughput:
             ReadCapacityUnits: 1
             WriteCapacityUnits: 1
+        - IndexName: node_idx
+          KeySchema:
+            - AttributeName: node
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
       ProvisionedThroughput:
         ReadCapacityUnits: 1
         WriteCapacityUnits: 1
       AttributeDefinitions:
         - AttributeName: id
+          AttributeType: S
+        - AttributeName: node
           AttributeType: S
         - AttributeName: part
           AttributeType: N

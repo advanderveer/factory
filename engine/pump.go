@@ -56,7 +56,6 @@ func (e *Engine) HandleScheduleMessages(ctx context.Context, doneCh chan<- struc
 
 //ExpireClaims queries the database for expired claims and reschedules them
 func (e *Engine) ExpireClaims(ctx context.Context) (err error) {
-
 	expired, err := model.ExpiredClaims(ctx, e.db, MaxExpiredClaimsPerPartition)
 	if err != nil {
 		return errors.Wrap(err, "failed to query expired claims")
@@ -64,18 +63,9 @@ func (e *Engine) ExpireClaims(ctx context.Context) (err error) {
 
 	e.logs.Printf("[INFO] found %d expired claims", len(expired))
 	for _, claim := range expired {
-
-		if rerr := model.ReturnNodeCapacity(ctx, e.db, model.NodePK{NodeID: claim.NodeID}, claim.Size); rerr != nil {
-			e.logs.Printf("[ERROR] failed to return node capacity: %v", rerr)
-		}
-
-		if serr := e.Submit(ctx, claim.PoolID, claim.Size); serr != nil {
-			e.logs.Printf("[ERROR] failed to re-submit claim as task: %v", serr)
-		}
-
-		err := model.DeleteClaim(ctx, e.db, claim.ClaimPK)
+		err := e.release(ctx, claim)
 		if err != nil {
-			return errors.Wrapf(err, "failed to delete claim '%s'", claim.ClaimPK)
+			return errors.Wrapf(err, "failed to release claim '%s'", claim.ClaimPK)
 		}
 	}
 

@@ -26,6 +26,7 @@ func main() {
 			"pump":  command.PumpFactory(),
 			"agent": command.AgentFactory(),
 			"run":   command.RunFactory(),
+			"evict": command.EvictFactory(),
 		},
 	}
 

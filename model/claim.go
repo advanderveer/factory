@@ -18,6 +18,9 @@ var (
 	//ClaimTTLIdxName sets the name of ttl index
 	ClaimTTLIdxName = "ttl_idx"
 
+	//ClaimNodeIdxName indexes claims based on the node its on
+	ClaimNodeIdxName = "node_idx"
+
 	//ClaimScatterPartitions determines the spread of gsi indexes
 	ClaimScatterPartitions = int64(10)
 
@@ -73,6 +76,19 @@ func CreateClaim(ctx context.Context, db DB, poolID, nodeID string, size int64, 
 	}
 
 	return claim, nil
+}
+
+//NodeClaims queries for all claims on a node
+func NodeClaims(ctx context.Context, db DB, nodeID string) (claims []*Claim, err error) {
+	q := dynamo.NewQuery(ClaimTableName, "#node = :node")
+	q.SetIndexName(ClaimNodeIdxName)
+	q.AddExpressionName("#node", "node")
+	q.AddExpressionValue(":node", nodeID)
+	if _, err := q.ExecuteWithContext(ctx, db, &claims); err != nil {
+		return nil, errors.Wrap(err, "failed to query")
+	}
+
+	return claims, nil
 }
 
 //ExpiredClaims queries the ttl index for expired claims
