@@ -54,8 +54,14 @@ func (e *Engine) Run(ctx context.Context, poolID string, size int64) error {
 		return errors.Wrap(err, "failed to claim node capacity")
 	}
 
+	claim, err := model.CreateClaim(ctx, e.db, poolID, claimed.NodeID, size)
+	if err != nil {
+		return errors.Wrap(err, "failed to create claim")
+	}
+
+	_ = claim
 	//@TODO at this point we have claimed capacity on a node
-	//@TODO create a claim object that expires, the node is expected to receive messages in real-time. If cannot handle the messages in time, or crashes while handling them, or decides not to handle them. The claim should expire and return back to the (priority) scheduling queue.
+	//@TODO create a claim object that expires, the node is expected to receive messages in real-time. If cannot handle the messages in time, or crashes while handling them, or decides not to handle them. The claim should expire and return back to (priority) scheduling.
 	msg := "hello, world"
 
 	e.logs.Printf("[DEBUG] Dispatching message '%s' to node '%s'", msg, claimed.NodePK)

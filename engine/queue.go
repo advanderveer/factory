@@ -71,6 +71,13 @@ func NextNodeMessage(ctx context.Context, q Q, pk model.NodePK) (msg string, err
 		return "", nil
 	}
 
+	dinp := &sqs.DeleteMessageInput{}
+	dinp.SetQueueUrl(FmtQueueURL(pk))
+	dinp.SetReceiptHandle(aws.StringValue(out.Messages[0].ReceiptHandle))
+	if _, err = q.DeleteMessageWithContext(ctx, dinp); err != nil {
+		return "", errors.Wrap(err, "failed to delete received message")
+	}
+
 	return aws.StringValue(out.Messages[0].Body), nil
 }
 

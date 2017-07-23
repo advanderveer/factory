@@ -1,7 +1,7 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Serverless Scheduler without cluster state
 Resources:
-  DynamoPhishes:
+  DynamoNodes:
     Type: AWS::DynamoDB::Table
     Properties:
       TableName: !Sub ${AWS::StackName}-nodes
@@ -38,6 +38,31 @@ Resources:
           AttributeType: N
         - AttributeName: pool
           AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+  DynamoClaims:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Sub ${AWS::StackName}-claims
+      GlobalSecondaryIndexes:
+        - IndexName: ttl_idx
+          KeySchema:
+            - AttributeName: ttl
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+          ProvisionedThroughput:
+            ReadCapacityUnits: 1
+            WriteCapacityUnits: 1
+      ProvisionedThroughput:
+        ReadCapacityUnits: 1
+        WriteCapacityUnits: 1
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+        - AttributeName: ttl
+          AttributeType: N
       KeySchema:
         - AttributeName: id
           KeyType: HASH

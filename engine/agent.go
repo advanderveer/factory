@@ -38,7 +38,7 @@ func (e *Engine) Handle(ctx context.Context, nodePK model.NodePK, doneCh chan<- 
 		}
 
 		e.logs.Printf("[INFO] Received next node message: '%s'", nextMsg)
-		//@TODO do something with message
+		//messages are signals that are immediately removed from the queue, it is a replacement for simple short polling on an api endpoint.
 	}
 }
 
