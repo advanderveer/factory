@@ -15,6 +15,9 @@ var (
 	//PumpCycleInterval determines at what rate the pump makes progress
 	PumpCycleInterval = time.Second
 
+	//MaxExpiredNodesPerPartition determines the max nr of claims per partition that can expire per cycle
+	MaxExpiredNodesPerPartition = int64(10)
+
 	//MaxExpiredClaimsPerPartition determines the max nr of claims per partition that can expire per cycle
 	MaxExpiredClaimsPerPartition = int64(10)
 )
@@ -72,6 +75,29 @@ func (e *Engine) ExpireClaims(ctx context.Context) (err error) {
 	return nil
 }
 
+//ExpireNodes queries the database for expired nodes and removes them
+func (e *Engine) ExpireNodes(ctx context.Context) (err error) {
+	expired, err := model.ExpiredNodes(ctx, e.db, MaxExpiredNodesPerPartition)
+	if err != nil {
+		return errors.Wrap(err, "failed to query expired nodes")
+	}
+
+	e.logs.Printf("[INFO] found %d expired nodes", len(expired))
+	for _, node := range expired {
+		err := e.deleteNode(ctx, node.NodePK)
+		if err != nil {
+			return errors.Wrapf(err, "failed to delete node '%s'", node.NodePK)
+		}
+
+		err = e.Evict(ctx, node.NodeID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to evict node '%s' claims", node.NodePK)
+		}
+	}
+
+	return nil
+}
+
 func (e *Engine) shutdownPump(doneCh chan struct{}) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, MaxAgentShutdownTime)
@@ -108,8 +134,10 @@ func (e *Engine) Pump(ctx context.Context) (err error) {
 				return errors.Wrap(err, "failed to expire claims")
 			}
 
-			//@TODO make progress:
-			//@TODO  - expire nodes: evict and delete
+			err = e.ExpireNodes(ctx)
+			if err != nil {
+				return errors.Wrap(err, "failed to expire nodes")
+			}
 		}
 	}
 }

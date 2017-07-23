@@ -50,16 +50,9 @@ func (e *Engine) shutdownAgent(node *model.Node, doneCh chan struct{}) error {
 	ctx, cancel := context.WithTimeout(ctx, MaxAgentShutdownTime)
 	defer cancel()
 
-	e.logs.Printf("[INFO] Deregister node '%s'", node.NodePK)
-	err := model.DeregisterNode(ctx, e.db, node.NodePK)
+	err := e.deleteNode(ctx, node.NodePK)
 	if err != nil {
-		return errors.Wrap(err, "failed to deregister node")
-	}
-
-	e.logs.Printf("[DEBUG] Deleting queue for node '%s'", node.NodePK)
-	err = DeleteNodeQueue(ctx, e.q, node.NodePK)
-	if err != nil {
-		return errors.Wrap(err, "failed to delete node queue")
+		return errors.Wrap(err, "failed to delete node")
 	}
 
 	e.logs.Printf("[INFO] Waiting for handling routine to exit")
@@ -77,7 +70,7 @@ func (e *Engine) Agent(ctx context.Context, poolID string) (err error) {
 	e.logs.Printf("[INFO] Starting node agent for pool '%s'", poolID)
 	defer e.logs.Printf("[INFO] Exited node agent")
 
-	node, err := model.RegisterNode(ctx, e.db, poolID)
+	node, err := model.RegisterNode(ctx, e.db, poolID, time.Now().Add(2*AgentHeartbeatInterval))
 	if err != nil {
 		return errors.Wrap(err, "failed to register node")
 	}
@@ -97,8 +90,17 @@ func (e *Engine) Agent(ctx context.Context, poolID string) (err error) {
 		case <-ctx.Done():
 			return e.shutdownAgent(node, doneCh)
 		case <-ticker.C:
-			e.logs.Printf("[DEBUG] Exector tick")
-			//@TODO send node ttl
+			t := 2 * AgentHeartbeatInterval
+			e.logs.Printf("[DEBUG] Incrementing node Heartbeat (+%s)", t)
+			err := model.IncrementNodeTTL(ctx, e.db, node.NodePK, t)
+			if err != nil {
+				if errors.Cause(err) == model.ErrNodeNotExists {
+					e.logs.Printf("[INFO] Node entry removed, shutting down")
+					return nil
+				}
+
+				return errors.Wrap(err, "failed to increment node ttl")
+			}
 		}
 	}
 }
