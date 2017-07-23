@@ -2,6 +2,7 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/advanderveer/factory/model"
@@ -16,17 +17,37 @@ var (
 
 	//AgentHeartbeatInterval determines how often the agent reports home
 	AgentHeartbeatInterval = time.Second * 10
+
+	//ExecutorRunTimeout determines how long the message handler waits for the executor to accept a run message
+	ExecutorRunTimeout = DockerRunExecTimeout + (5 * time.Second)
 )
 
 //HandleNodeMessage will start handling node messages
-func (e *Engine) HandleNodeMessage(ctx context.Context, nodePK model.NodePK, doneCh chan<- struct{}) {
+func (e *Engine) HandleNodeMessage(ctx context.Context, nodePK model.NodePK, doneCh chan<- struct{}, runCh chan<- RunMsg) {
 	e.logs.Printf("[INFO] Start handling messages for node '%s'", nodePK)
 	defer e.logs.Printf("[INFO] Stopped handling messages for node '%s'", nodePK)
 	defer close(doneCh)
 
 	for {
-		nextMsg, err := NextNodeMessage(ctx, e.q, nodePK)
-		if err != nil {
+		if err := NextNodeMessage(ctx, e.q, nodePK, func(nextMsg string) bool {
+
+			e.logs.Printf("[DEBUG] Received run message: '%s'", nextMsg)
+			msg := RunMsg{}
+			err := json.Unmarshal([]byte(nextMsg), &msg)
+			if err != nil {
+				e.logs.Printf("[ERROR] Failed to unmarshal run message: %v", err)
+				return false
+			}
+
+			select {
+			case <-time.After(ExecutorRunTimeout):
+				e.logs.Printf("[ERROR] Timed out waiting for executor to accept message '%s'", nextMsg)
+				return false
+			case runCh <- msg:
+			}
+
+			return true
+		}); err != nil {
 			if aerr, ok := errors.Cause(err).(awserr.Error); ok && aerr.Code() == request.CanceledErrorCode {
 				e.logs.Printf("[INFO] Mext node message receive was cancelled")
 				return
@@ -36,16 +57,10 @@ func (e *Engine) HandleNodeMessage(ctx context.Context, nodePK model.NodePK, don
 			return
 		}
 
-		if nextMsg == "" {
-			continue
-		}
-
-		e.logs.Printf("[INFO] Received next node message: '%s'", nextMsg)
-		//messages are signals that are immediately removed from the queue, it is a replacement for simple short polling on an api endpoint.
 	}
 }
 
-func (e *Engine) shutdownAgent(node *model.Node, doneCh chan struct{}) error {
+func (e *Engine) shutdownAgent(node *model.Node, handleDoneCh chan struct{}, execDoneCh chan struct{}) error {
 	ctx := context.Background()
 	ctx, cancel := context.WithTimeout(ctx, MaxAgentShutdownTime)
 	defer cancel()
@@ -57,9 +72,16 @@ func (e *Engine) shutdownAgent(node *model.Node, doneCh chan struct{}) error {
 
 	e.logs.Printf("[INFO] Waiting for handling routine to exit")
 	select {
-	case <-doneCh:
+	case <-handleDoneCh:
 	case <-ctx.Done():
 		return errors.Wrap(err, "handling routine didn't exit in time")
+	}
+
+	e.logs.Printf("[INFO] Waiting for executor routine to exit")
+	select {
+	case <-handleDoneCh:
+	case <-ctx.Done():
+		return errors.Wrap(err, "executor routine didn't exit in time")
 	}
 
 	return nil
@@ -81,14 +103,21 @@ func (e *Engine) Agent(ctx context.Context, poolID string) (err error) {
 		return errors.Wrap(err, "failed to create node queue")
 	}
 
-	doneCh := make(chan struct{})
-	go e.HandleNodeMessage(ctx, node.NodePK, doneCh)
+	exec, err := NewDockerExec(e.logs, e.db)
+	if err != nil {
+		return errors.Wrap(err, "failed to create docker executer")
+	}
+
+	go exec.Start(ctx, node.NodeID)
+
+	handleMsgDoneCh := make(chan struct{})
+	go e.HandleNodeMessage(ctx, node.NodePK, handleMsgDoneCh, exec.Incoming)
 
 	ticker := time.NewTicker(AgentHeartbeatInterval)
 	for {
 		select {
 		case <-ctx.Done():
-			return e.shutdownAgent(node, doneCh)
+			return e.shutdownAgent(node, handleMsgDoneCh, exec.Done)
 		case <-ticker.C:
 			t := 2 * AgentHeartbeatInterval
 			e.logs.Printf("[DEBUG] Incrementing node Heartbeat (+%s)", t)

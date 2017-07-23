@@ -13,7 +13,7 @@ import (
 
 var (
 	//PumpCycleInterval determines at what rate the pump makes progress
-	PumpCycleInterval = time.Second
+	PumpCycleInterval = time.Second * 3
 
 	//MaxExpiredNodesPerPartition determines the max nr of claims per partition that can expire per cycle
 	MaxExpiredNodesPerPartition = int64(10)

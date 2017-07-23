@@ -124,3 +124,20 @@ func DeleteClaim(ctx context.Context, db DB, pk ClaimPK) (err error) {
 
 	return nil
 }
+
+//IncrementClaimTTL will lenghten the ttl of the node
+func IncrementClaimTTL(ctx context.Context, db DB, pk ClaimPK, nodeID string, t time.Duration) (err error) {
+	upd := dynamo.NewUpdate(ClaimTableName, pk)
+	upd.SetUpdateExpression("SET #ttl = :ttl")
+	upd.SetConditionExpression("attribute_exists(id) AND #node = :node")
+	upd.AddExpressionName("#ttl", "ttl")
+	upd.AddExpressionValue(":ttl", time.Now().Add(t).Unix())
+	upd.AddExpressionName("#node", "node")
+	upd.AddExpressionValue(":node", nodeID)
+	upd.SetConditionError(ErrClaimNotExists)
+	if err = upd.ExecuteWithContext(ctx, db); err != nil {
+		return errors.Wrap(err, "failed to update node")
+	}
+
+	return nil
+}

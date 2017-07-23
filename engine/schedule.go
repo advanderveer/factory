@@ -66,7 +66,8 @@ func (e *Engine) Schedule(ctx context.Context, poolID string, size int64) error 
 	}
 
 	msg := RunMsg{
-		Size: claim.Size,
+		Size:    claim.Size,
+		ClaimID: claim.ClaimID,
 	}
 
 	data, err := json.Marshal(msg)

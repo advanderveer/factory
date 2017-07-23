@@ -22,7 +22,8 @@ type ScheduleMsg struct {
 
 //RunMsg is the msg send to nodes
 type RunMsg struct {
-	Size int64 `json:"size"`
+	Size    int64  `json:"size"`
+	ClaimID string `json:"claim_id"`
 }
 
 var (
@@ -72,27 +73,29 @@ func DeleteNodeQueue(ctx context.Context, q Q, pk model.NodePK) (err error) {
 }
 
 //NextNodeMessage iterates the node queue by fetching one at a time
-func NextNodeMessage(ctx context.Context, q Q, pk model.NodePK) (msg string, err error) {
+func NextNodeMessage(ctx context.Context, q Q, pk model.NodePK, handler func(msg string) bool) (err error) {
 	inp := &sqs.ReceiveMessageInput{}
 	inp.SetQueueUrl(FmtQueueURL(FmtQueueName(pk)))
 	inp.SetWaitTimeSeconds(20)
 	out := &sqs.ReceiveMessageOutput{}
 	if out, err = q.ReceiveMessageWithContext(ctx, inp); err != nil {
-		return "", errors.Wrap(err, "failed to receive message")
+		return errors.Wrap(err, "failed to receive message")
 	}
 
 	if len(out.Messages) < 1 {
-		return "", nil
+		return nil
 	}
 
-	dinp := &sqs.DeleteMessageInput{}
-	dinp.SetQueueUrl(FmtQueueURL(FmtQueueName(pk)))
-	dinp.SetReceiptHandle(aws.StringValue(out.Messages[0].ReceiptHandle))
-	if _, err = q.DeleteMessageWithContext(ctx, dinp); err != nil {
-		return "", errors.Wrap(err, "failed to delete received message")
+	if handler(aws.StringValue(out.Messages[0].Body)) {
+		dinp := &sqs.DeleteMessageInput{}
+		dinp.SetQueueUrl(FmtQueueURL(FmtQueueName(pk)))
+		dinp.SetReceiptHandle(aws.StringValue(out.Messages[0].ReceiptHandle))
+		if _, err = q.DeleteMessageWithContext(ctx, dinp); err != nil {
+			return errors.Wrap(err, "failed to delete received message")
+		}
 	}
 
-	return aws.StringValue(out.Messages[0].Body), nil
+	return nil
 }
 
 //NextScheduleMessage iterates the schedule queue by fetching one at a time
