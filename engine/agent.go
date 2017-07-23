@@ -84,9 +84,11 @@ func (e *Engine) Agent(ctx context.Context, poolID string) (err error) {
 				}
 
 				e.logs.Printf("[INFO] Waiting for handling routine to exit")
-				<-doneCh
-
-				//@TODO wait for handling logic to complete
+				select {
+				case <-doneCh:
+				case <-ctx.Done():
+					return errors.Wrap(err, "handling routine didn't exit in time")
+				}
 			}
 
 			return nil
