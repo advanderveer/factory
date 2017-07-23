@@ -1,6 +1,10 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Serverless Scheduler without cluster state
 Resources:
+  QueueScheduling:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub ${AWS::StackName}-scheduling
   DynamoNodes:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -8,8 +12,10 @@ Resources:
       GlobalSecondaryIndexes:
         - IndexName: ttl_idx
           KeySchema:
-            - AttributeName: ttl
+            - AttributeName: part
               KeyType: HASH
+            - AttributeName: ttl
+              KeyType: RANGE
           Projection:
             ProjectionType: ALL
           ProvisionedThroughput:
@@ -32,6 +38,8 @@ Resources:
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
+        - AttributeName: part
+          AttributeType: N
         - AttributeName: ttl
           AttributeType: N
         - AttributeName: cap
@@ -48,8 +56,10 @@ Resources:
       GlobalSecondaryIndexes:
         - IndexName: ttl_idx
           KeySchema:
-            - AttributeName: ttl
+            - AttributeName: part
               KeyType: HASH
+            - AttributeName: ttl
+              KeyType: RANGE
           Projection:
             ProjectionType: ALL
           ProvisionedThroughput:
@@ -61,6 +71,8 @@ Resources:
       AttributeDefinitions:
         - AttributeName: id
           AttributeType: S
+        - AttributeName: part
+          AttributeType: N
         - AttributeName: ttl
           AttributeType: N
       KeySchema:

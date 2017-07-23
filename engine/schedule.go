@@ -2,6 +2,8 @@ package engine
 
 import (
 	"context"
+	"encoding/json"
+	"time"
 
 	"github.com/advanderveer/factory/model"
 	"github.com/cenkalti/backoff"
@@ -14,14 +16,17 @@ var (
 
 	//MaxClaimCandidates is the max number of candidates that will be considered
 	MaxClaimCandidates = int64(10)
+
+	//ClaimHeartbeatTimeout determines how often the node has to call in
+	ClaimHeartbeatTimeout = time.Second * 30
 )
 
-//Run will submit a task for execution on a node
-func (e *Engine) Run(ctx context.Context, poolID string, size int64) error {
+//Schedule will place a task on a node
+func (e *Engine) Schedule(ctx context.Context, poolID string, size int64) error {
 
 	var claimed *model.Node
 	operation := func() error {
-		e.logs.Printf("[DEBUG] quering nodes with at capacity >= %d", size)
+		e.logs.Printf("[DEBUG] quering nodes with at least capacity >= %d", size)
 		nodes, err := model.NodesWithEnoughCapacity(ctx, e.db, poolID, size, MaxClaimCandidates)
 		if err != nil {
 			return errors.Wrap(err, "failed to find nodes with enough capacity")
@@ -54,20 +59,26 @@ func (e *Engine) Run(ctx context.Context, poolID string, size int64) error {
 		return errors.Wrap(err, "failed to claim node capacity")
 	}
 
-	claim, err := model.CreateClaim(ctx, e.db, poolID, claimed.NodeID, size)
+	ttl := time.Now().Add(ClaimHeartbeatTimeout)
+	claim, err := model.CreateClaim(ctx, e.db, poolID, claimed.NodeID, size, ttl)
 	if err != nil {
 		return errors.Wrap(err, "failed to create claim")
 	}
 
-	_ = claim
-	//@TODO at this point we have claimed capacity on a node
-	//@TODO create a claim object that expires, the node is expected to receive messages in real-time. If cannot handle the messages in time, or crashes while handling them, or decides not to handle them. The claim should expire and return back to (priority) scheduling.
-	msg := "hello, world"
+	msg := RunMsg{
+		Size: claim.Size,
+	}
 
-	e.logs.Printf("[DEBUG] Dispatching message '%s' to node '%s'", msg, claimed.NodePK)
-	err = SendNodeMessage(ctx, e.q, claimed.NodePK, msg)
+	data, err := json.Marshal(msg)
 	if err != nil {
-		return errors.Wrapf(err, "failed to send node message '%s'", msg)
+		return errors.Wrap(err, "failed to marshal claim for messaging")
+	}
+
+	msgs := string(data)
+	e.logs.Printf("[DEBUG] Dispatching message '%s' to node '%s'", msgs, claimed.NodePK)
+	err = SendNodeMessage(ctx, e.q, claimed.NodePK, msgs)
+	if err != nil {
+		return errors.Wrapf(err, "failed to send node message '%s'", msgs)
 	}
 
 	return nil

@@ -24,6 +24,9 @@ var (
 
 	//ErrNodeCapacityUnfit means the node capacity is too low or it unregistered
 	ErrNodeCapacityUnfit = errors.New("node capacity low or node no longer exist")
+
+	//ErrNodeReturnUnfit means the node capacity is too low or it unregistered
+	ErrNodeReturnUnfit = errors.New("node capacity high or node no longer exist")
 )
 
 //NodePK is the primary key
@@ -41,6 +44,7 @@ type Node struct {
 	PoolID string `dynamodbav:"pool"`
 	TTL    int64  `dynamodbav:"ttl"`
 	Cap    int64  `dynamodbav:"cap"`
+	Max    int64  `dynamodbav:"max"`
 }
 
 //RegisterNode will add a node and set the ttl
@@ -56,6 +60,7 @@ func RegisterNode(ctx context.Context, db DB, poolID string) (*Node, error) {
 		},
 		PoolID: poolID,
 		Cap:    10,
+		Max:    10,
 	}
 
 	put := dynamo.NewPut(NodeTableName, node)
@@ -101,6 +106,21 @@ func ClaimNodeCapacity(ctx context.Context, db DB, pk NodePK, size int64) (err e
 	upd.SetUpdateExpression("SET cap = cap - :size")
 	upd.SetConditionExpression("attribute_exists(id) AND cap >= :size")
 	upd.SetConditionError(ErrNodeCapacityUnfit)
+	upd.AddExpressionValue(":size", size)
+	if err = upd.ExecuteWithContext(ctx, db); err != nil {
+		return errors.Wrap(err, "failed to update node")
+	}
+
+	return nil
+}
+
+//ReturnNodeCapacity returns capacity backe to the node
+func ReturnNodeCapacity(ctx context.Context, db DB, pk NodePK, size int64) (err error) {
+	upd := dynamo.NewUpdate(NodeTableName, pk)
+	upd.SetUpdateExpression("SET cap = cap + :size")
+	upd.SetConditionExpression("attribute_exists(id) AND cap < #max")
+	upd.SetConditionError(ErrNodeReturnUnfit)
+	upd.AddExpressionName("#max", "max")
 	upd.AddExpressionValue(":size", size)
 	if err = upd.ExecuteWithContext(ctx, db); err != nil {
 		return errors.Wrap(err, "failed to update node")

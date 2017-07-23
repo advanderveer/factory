@@ -104,7 +104,7 @@ function run_destroy { #remove the stack through cloudformation
 	command -v aws >/dev/null 2>&1 || { echo "executable 'aws' (AWS CLI) must be installed: https://aws.amazon.com/cli/" >&2; exit 1; }
 
   aws cloudformation delete-stack \
-	--profile=phishermen \
+	--profile=factory \
 	--region=eu-west-1 \
 	--stack-name=factory
 }

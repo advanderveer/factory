@@ -23,6 +23,7 @@ func main() {
 		Args:         os.Args[1:],
 		Autocomplete: true,
 		Commands: map[string]cli.CommandFactory{
+			"pump":  command.PumpFactory(),
 			"agent": command.AgentFactory(),
 			"run":   command.RunFactory(),
 		},

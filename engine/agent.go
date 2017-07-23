@@ -13,10 +13,13 @@ import (
 var (
 	//MaxAgentShutdownTime determines how long the agent gets for a shutdown
 	MaxAgentShutdownTime = time.Second * 5
+
+	//AgentHeartbeatInterval determines how often the agent reports home
+	AgentHeartbeatInterval = time.Second * 10
 )
 
-//Handle will start handling node messages
-func (e *Engine) Handle(ctx context.Context, nodePK model.NodePK, doneCh chan<- struct{}) {
+//HandleNodeMessage will start handling node messages
+func (e *Engine) HandleNodeMessage(ctx context.Context, nodePK model.NodePK, doneCh chan<- struct{}) {
 	e.logs.Printf("[INFO] Start handling messages for node '%s'", nodePK)
 	defer e.logs.Printf("[INFO] Stopped handling messages for node '%s'", nodePK)
 	defer close(doneCh)
@@ -42,6 +45,33 @@ func (e *Engine) Handle(ctx context.Context, nodePK model.NodePK, doneCh chan<- 
 	}
 }
 
+func (e *Engine) shutdownAgent(node *model.Node, doneCh chan struct{}) error {
+	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(ctx, MaxAgentShutdownTime)
+	defer cancel()
+
+	e.logs.Printf("[INFO] Deregister node '%s'", node.NodePK)
+	err := model.DeregisterNode(ctx, e.db, node.NodePK)
+	if err != nil {
+		return errors.Wrap(err, "failed to deregister node")
+	}
+
+	e.logs.Printf("[DEBUG] Deleting queue for node '%s'", node.NodePK)
+	err = DeleteNodeQueue(ctx, e.q, node.NodePK)
+	if err != nil {
+		return errors.Wrap(err, "failed to delete node queue")
+	}
+
+	e.logs.Printf("[INFO] Waiting for handling routine to exit")
+	select {
+	case <-doneCh:
+	case <-ctx.Done():
+		return errors.Wrap(err, "handling routine didn't exit in time")
+	}
+
+	return nil
+}
+
 //Agent will start the node agent
 func (e *Engine) Agent(ctx context.Context, poolID string) (err error) {
 	e.logs.Printf("[INFO] Starting node agent for pool '%s'", poolID)
@@ -59,39 +89,13 @@ func (e *Engine) Agent(ctx context.Context, poolID string) (err error) {
 	}
 
 	doneCh := make(chan struct{})
-	go e.Handle(ctx, node.NodePK, doneCh)
+	go e.HandleNodeMessage(ctx, node.NodePK, doneCh)
 
-	ticker := time.NewTicker(time.Second)
+	ticker := time.NewTicker(AgentHeartbeatInterval)
 	for {
 		select {
 		case <-ctx.Done():
-
-			{
-				ctx := context.Background()
-				ctx, cancel := context.WithTimeout(ctx, MaxAgentShutdownTime)
-				defer cancel()
-
-				e.logs.Printf("[INFO] Deregister node '%s'", node.NodePK)
-				err := model.DeregisterNode(ctx, e.db, node.NodePK)
-				if err != nil {
-					return errors.Wrap(err, "failed to deregister node")
-				}
-
-				e.logs.Printf("[DEBUG] Deleting queue for node '%s'", node.NodePK)
-				err = DeleteNodeQueue(ctx, e.q, node.NodePK)
-				if err != nil {
-					return errors.Wrap(err, "failed to delete node queue")
-				}
-
-				e.logs.Printf("[INFO] Waiting for handling routine to exit")
-				select {
-				case <-doneCh:
-				case <-ctx.Done():
-					return errors.Wrap(err, "handling routine didn't exit in time")
-				}
-			}
-
-			return nil
+			return e.shutdownAgent(node, doneCh)
 		case <-ticker.C:
 			e.logs.Printf("[DEBUG] Exector tick")
 			//@TODO send node ttl
